@@ -235,4 +235,4 @@ def test_search_params(case_id, ...):
 
 ## 📜 License
 
-与 SpringCloud B2C 电商平台源码配套，仅用于内部自动化评审与回归测试。
+与 星火优选SpringCloud B2C 电商平台源码配套，仅用于内部自动化评审与回归测试。
