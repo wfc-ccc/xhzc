@@ -4,19 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="96153b22-206c-4e25-8273-2cfed9676635" name="更改" comment="1">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/xh_ui_auto/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/config/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/xh_ui_auto/config/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/pages/home_page.py" beforeDir="false" afterPath="$PROJECT_DIR$/xh_ui_auto/pages/home_page.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/pages/login_page.py" beforeDir="false" afterPath="$PROJECT_DIR$/xh_ui_auto/pages/login_page.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/pages/publish_page.py" beforeDir="false" afterPath="$PROJECT_DIR$/xh_ui_auto/pages/publish_page.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/pages/register_page.py" beforeDir="false" afterPath="$PROJECT_DIR$/xh_ui_auto/pages/register_page.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/pages/user_center_page.py" beforeDir="false" afterPath="$PROJECT_DIR$/xh_ui_auto/pages/user_center_page.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/testcases/test_register.py" beforeDir="false" afterPath="$PROJECT_DIR$/xh_ui_auto/testcases/test_register.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/xh_ui_auto/utils/logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/xh_ui_auto/utils/logger.py" afterDir="false" />
-    </list>
+    <list default="true" id="96153b22-206c-4e25-8273-2cfed9676635" name="更改" comment="测试完善" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -24,6 +12,7 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="UPDATE_TYPE" value="REBASE" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
   &quot;lastFilter&quot;: {
@@ -49,6 +38,7 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "main",
@@ -78,12 +68,21 @@
       <option name="project" value="LOCAL" />
       <updated>1785889036964</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="测试完善">
+      <option name="closed" value="true" />
+      <created>1789781805877</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1789781805877</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial commit" />
     <MESSAGE value="1" />
-    <option name="LAST_COMMIT_MESSAGE" value="1" />
+    <MESSAGE value="测试完善" />
+    <option name="LAST_COMMIT_MESSAGE" value="测试完善" />
   </component>
 </project>
