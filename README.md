@@ -1,4 +1,4 @@
-# xh_api_auto  ·  B2C 电商接口自动化测试项目
+# xh_api_auto  针对星火优选电商平台的 B2C 电商接口自动化测试项目
 
 > 基于 SpringCloud B2C 电商平台 API 规范构建的 **pytest + Allure + DDT（数据驱动）** 四层（base / page / script / report）接口自动化工程。
 > 与同级目录 `xh_ui_auto`（UI 自动化）**互相独立、代码风格保持一致**，可单独执行、单独接入 CI。
