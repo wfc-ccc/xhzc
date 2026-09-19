@@ -1,0 +1,9 @@
+﻿{
+  "method": "GET",
+  "url": "http://192.168.31.88:8080/api/product/search",
+  "params": {"keyword": "商品", "page": 1, "size": 5},
+  "headers": {
+    "Content-Type": "application/json;charset=UTF-8",
+    "Accept": "application/json"
+  }
+}

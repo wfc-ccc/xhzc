@@ -1,0 +1,4 @@
+﻿case_id,productId,page,size,sort,expect_code
+RV_L_001,1001,1,10,time_desc,200
+RV_L_002,1001,1,20,rating_desc,200
+RV_L_003,1002,1,5,time_desc,200

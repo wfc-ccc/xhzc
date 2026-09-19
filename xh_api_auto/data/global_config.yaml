@@ -1,0 +1,43 @@
+# 全局共用测试数据配置
+# 用户 / 商品 / 订单 / 优惠券 / 秒杀 等默认ID，可与 settings.py 互补
+common:
+  test_user_id: 123
+  test_username: "test_user"
+  test_phone: "13800000000"
+  default_address_id: 3001
+
+default_ids:
+  product_id: 1001
+  product_id_2: 1002
+  category_id: 10
+  brand_id: 5
+  order_id: 5001
+  order_id_2: 5002
+  coupon_id: 4001
+  coupon_id_2: 4002
+  seckill_id: 6001
+  seckill_id_2: 6002
+  review_id: 7001
+
+# 支付方式配置
+payment:
+  alipay: "ALIPAY"
+  wechat: "WECHAT"
+  return_url: "https://example.com/pay/return"
+  callback_body:
+    ALIPAY:
+      trade_status_success: "TRADE_SUCCESS"
+      sign_type: "RSA2"
+    WECHAT:
+      trade_state_success: "SUCCESS"
+
+# 评价配置
+review:
+  valid_ratings: [1, 2, 3, 4, 5]
+  default_sort: "time_desc"
+  available_sorts: ["time_desc", "rating_desc"]
+
+# 秒杀场景配置
+seckill:
+  valid_status: ["进行中", "未开始", "已结束"]
+  default_quantity: 1

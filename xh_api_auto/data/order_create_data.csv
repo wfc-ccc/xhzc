@@ -1,0 +1,4 @@
+﻿case_id,addressId,couponId,remark,expect_code,expect_status
+O_C_001,3001,,尽快发货,200,待支付
+O_C_002,3001,4001,开票,200,待支付
+O_C_003,-1,,,400,

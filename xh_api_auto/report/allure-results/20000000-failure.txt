@@ -1,0 +1,13 @@
+﻿Case: script/test_order.py::TestOrder::test_create_order
+
+Traceback (most recent call last):
+  File "script/test_order.py", line 58, in test_create_order
+    assert_common(create_resp, settings.SUCCESS_CODE, message_contains="成功")
+  File "utils/helpers.py", line 31, in assert_common
+    f"状态码不匹配：期望 {expected_code}，实际 {response['code']}，"
+AssertionError: 状态码不匹配：期望 200，实际 -1，message=请求失败: 500 Server Error: ...
+（重试 2 次，重试间隔 2s；HTTP 500 响应体 code=500 message=数据库连接超时）
+
+Suggestion:
+  - 查看订单服务 order-service 连接池监控 (druid maxActive)
+  - 修复后重新回归: pytest script/test_order.py::TestOrder::test_create_order

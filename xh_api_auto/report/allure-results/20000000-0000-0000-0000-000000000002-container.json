@@ -1,0 +1,37 @@
+﻿{
+  "name": "test_create_order",
+  "uuid": "20000000-0000-0000-0000-000000000002",
+  "children": [
+    {
+      "name": "步骤1：先添加商品到购物车",
+      "status": "passed",
+      "start": 1758249035215,
+      "stop": 1758249035900,
+      "attachments": []
+    },
+    {
+      "name": "步骤2：创建订单，不使用优惠券",
+      "status": "broken",
+      "start": 1758249036000,
+      "stop": 1758249043600,
+      "attachments": [
+        {"name": "Request",  "source": "20000000-attach-request.json",  "type": "application/json"},
+        {"name": "Response", "source": "20000000-attach-response.json", "type": "application/json"}
+      ]
+    },
+    {
+      "name": "步骤3：断言创建成功与关键字段",
+      "status": "failed",
+      "start": 1758249043605,
+      "stop": 1758249043738,
+      "attachments": [
+        {"name": "Failure Info", "source": "20000000-failure.txt", "type": "text/plain"}
+      ]
+    }
+  ],
+  "befores": [{"name": "auth_http_client fixture", "status": "passed", "start": 1758249035200, "stop": 1758249035209}],
+  "afters":  [],
+  "attachments": [],
+  "start": 1758249035210,
+  "stop":  1758249043742
+}

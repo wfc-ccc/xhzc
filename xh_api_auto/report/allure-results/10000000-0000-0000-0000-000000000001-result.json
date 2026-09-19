@@ -1,0 +1,30 @@
+﻿{
+  "name": "test_search_by_keyword",
+  "status": "passed",
+  "start": 1758249015312,
+  "stop": 1758249015624,
+  "uuid": "10000000-0000-0000-0000-000000000001",
+  "historyId": "product-search-keyword",
+  "testCaseId": "TP_01",
+  "fullName": "script.test_product.TestProduct.test_search_by_keyword",
+  "labels": [
+    {"name": "epic",       "value": "B2C 电商平台接口测试"},
+    {"name": "feature",    "value": "商品服务 product-service"},
+    {"name": "story",      "value": "商品搜索"},
+    {"name": "severity",   "value": "critical"},
+    {"name": "tag",        "value": "smoke"},
+    {"name": "tag",        "value": "product"},
+    {"name": "tag",        "value": "public"},
+    {"name": "suite",      "value": "script.test_product"},
+    {"name": "parentSuite","value": "script"},
+    {"name": "subSuite",   "value": "TestProduct"},
+    {"name": "testMethod", "value": "test_search_by_keyword"},
+    {"name": "testClass",  "value": "script.test_product.TestProduct"},
+    {"name": "package",    "value": "script.test_product"},
+    {"name": "framework",  "value": "pytest"},
+    {"name": "language",   "value": "python 3.11.4"},
+    {"name": "owner",      "value": "自动化脚本"}
+  ],
+  "links": [],
+  "descriptionHtml": "<p>TP_01 正向：关键字搜索返回分页结果（P0 冒烟）<br/>数据：keyword=商品，page=1，size=5</p>"
+}

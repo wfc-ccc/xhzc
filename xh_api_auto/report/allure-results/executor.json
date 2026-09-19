@@ -1,0 +1,9 @@
+﻿{
+  "name": "本地运行",
+  "type": "pytest",
+  "url": "http://192.168.31.88:8080",
+  "buildOrder": 42,
+  "buildName": "xh_api_auto #42",
+  "buildUrl": "http://ci.example.com/job/xh_api_auto/42/",
+  "reportName": "B2C 电商接口测试报告"
+}

@@ -1,0 +1,15 @@
+﻿{
+  "method": "POST",
+  "url": "http://192.168.31.88:8080/api/order/create",
+  "body": {
+    "cartItemIds": [2001, 2002],
+    "addressId": 3001,
+    "remark": "尽快发货"
+  },
+  "headers": {
+    "Content-Type": "application/json;charset=UTF-8",
+    "Accept": "application/json",
+    "Authorization": "Bearer eyJhbGc***oXbQqQ"
+  },
+  "retry": 2
+}

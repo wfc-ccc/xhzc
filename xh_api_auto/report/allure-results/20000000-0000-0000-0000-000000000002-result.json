@@ -1,0 +1,30 @@
+﻿{
+  "name": "test_create_order",
+  "status": "failed",
+  "stage": "run",
+  "start": 1758249035210,
+  "stop":  1758249043742,
+  "uuid": "20000000-0000-0000-0000-000000000002",
+  "historyId": "order-create",
+  "testCaseId": "TO_01",
+  "fullName": "script.test_order.TestOrder.test_create_order",
+  "labels": [
+    {"name": "epic",       "value": "B2C 电商平台接口测试"},
+    {"name": "feature",    "value": "订单服务 order-service"},
+    {"name": "story",      "value": "创建订单"},
+    {"name": "severity",   "value": "blocker"},
+    {"name": "tag",        "value": "smoke"},
+    {"name": "tag",        "value": "order"},
+    {"name": "tag",        "value": "auth"},
+    {"name": "suite",      "value": "script.test_order"},
+    {"name": "parentSuite","value": "script"},
+    {"name": "subSuite",   "value": "TestOrder"},
+    {"name": "testMethod", "value": "test_create_order"},
+    {"name": "testClass",  "value": "script.test_order.TestOrder"},
+    {"name": "package",    "value": "script.test_order"},
+    {"name": "framework",  "value": "pytest"},
+    {"name": "language",   "value": "python 3.11.4"},
+    {"name": "owner",      "value": "王磊"}
+  ],
+  "links": []
+}

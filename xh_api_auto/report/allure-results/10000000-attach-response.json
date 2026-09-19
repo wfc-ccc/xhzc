@@ -1,0 +1,13 @@
+﻿{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "total": 128,
+    "pages": 26,
+    "current": 1,
+    "list": [
+      {"productId": 1001, "name": "商品名称_A", "price": 99.00, "image": "https://img.example.com/p1.jpg", "sales": 500},
+      {"productId": 1002, "name": "推荐商品_B", "price": 199.00, "image": "https://img.example.com/p2.jpg", "sales": 321}
+    ]
+  }
+}

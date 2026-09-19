@@ -1,0 +1,34 @@
+﻿{
+  "name": "test_search_by_keyword",
+  "uuid": "10000000-0000-0000-0000-000000000001",
+  "children": [
+    {
+      "name": "步骤1：调用搜索接口，传入关键字",
+      "status": "passed",
+      "start": 1758249015315,
+      "stop": 1758249015498,
+      "steps": [],
+      "attachments": [
+        {"name": "Request",  "source": "10000000-attach-request.json",  "type": "application/json"},
+        {"name": "Response", "source": "10000000-attach-response.json", "type": "application/json"}
+      ]
+    },
+    {
+      "name": "步骤2：断言响应结构与状态码",
+      "status": "passed",
+      "start": 1758249015500,
+      "stop": 1758249015560,
+      "steps": []
+    },
+    {
+      "name": "步骤3：断言关键字出现在返回商品名称中（非空时）",
+      "status": "passed",
+      "start": 1758249015561,
+      "stop": 1758249015620,
+      "steps": []
+    }
+  ],
+  "attachments": [],
+  "start": 1758249015312,
+  "stop": 1758249015624
+}

@@ -1,0 +1,1830 @@
+Index: xh_ui_auto/testcases/test_article.py
+===================================================================
+diff --git a/xh_ui_auto/testcases/test_article.py b/xh_ui_auto/testcases/test_article.py
+deleted file mode 100644
+--- a/xh_ui_auto/testcases/test_article.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,155 +0,0 @@
+-# File: testcases/test_article.py
+-"""文章相关测试用例（@pytest.mark.parametrize 数据驱动）。
+-
+-发布长文章用例从 data/article_publish_data.csv 读取，通过
+-@pytest.mark.parametrize 装饰器注入参数。
+-"""
+-import pytest
+-
+-from config.settings import settings
+-from pages.home_page import HomePage
+-from pages.publish_page import PublishPage
+-from pages.article_detail_page import ArticleDetailPage
+-from pages.login_page import LoginPage
+-from utils.csv_reader import read_csv_to_list, get_data_path
+-from utils.helpers import (
+-    random_article_title,
+-    random_article_content,
+-    random_chinese_text,
+-)
+-
+-# 模块级加载 CSV：@parametrize 在收集阶段求值，必须模块级读取
+-PUBLISH_DATA = read_csv_to_list(get_data_path("article_publish_data.csv"))
+-
+-
+-class TestArticle:
+-    """文章发布、搜索、删除等测试。"""
+-
+-    @pytest.mark.publish
+-    def test_publish_micro_header(self, logged_in_driver):
+-        """发布纯文本微头条，发布后首页列表可见。"""
+-        publish_page = PublishPage(logged_in_driver)
+-        content = f"自动化测试微头条_{random_chinese_text(15)}"
+-        publish_page.publish_micro_header(content)
+-
+-        assert publish_page.is_publish_success() or not publish_page.get_error_tip(), \
+-            "微头条发布失败"
+-
+-        home_page = HomePage(logged_in_driver)
+-        home_page.open_home()
+-        assert len(home_page.get_article_list()) > 0, "首页文章列表为空"
+-
+-    @pytest.mark.publish
+-    @pytest.mark.parametrize(
+-        "case",
+-        PUBLISH_DATA,
+-        ids=[r["case_name"] for r in PUBLISH_DATA],
+-    )
+-    def test_publish_article(self, logged_in_driver, case):
+-        """参数化：发布带标题和正文的文章。"""
+-        title = case["title"]
+-        content = case["content"]
+-        expected = case["expected_result"]
+-        case_name = case["case_name"]
+-
+-        publish_page = PublishPage(logged_in_driver)
+-        publish_page.open_publish_page()
+-        publish_page.switch_to_article()
+-        if title:
+-            publish_page.input_article_title(title)
+-        if content:
+-            publish_page.input_rich_text_content(content)
+-        publish_page.publish()
+-
+-        if expected == "success":
+-            assert publish_page.is_publish_success(), (
+-                f"[{case_name}] 期望发布成功，但未出现成功提示"
+-            )
+-            if title:
+-                home_page = HomePage(logged_in_driver)
+-                home_page.open_home()
+-                try:
+-                    home_page.click_article_by_title(title[:8])
+-                    detail_page = ArticleDetailPage(logged_in_driver)
+-                    assert detail_page.verify_content_matches(
+-                        expected_title=title,
+-                        expected_content_part=content[:10] if content else "",
+-                    ), f"[{case_name}] 详情页内容与发布内容不一致"
+-                except Exception:
+-                    pytest.skip(f"[{case_name}] 新发布文章未在推荐流展示，跳过详情验证")
+-        else:
+-            error_tip = publish_page.get_error_tip()
+-            word_tip = publish_page.get_word_count_tip()
+-            assert error_tip or word_tip or not publish_page.is_publish_success(), (
+-                f"[{case_name}] 期望发布失败，但实际发布成功"
+-            )
+-
+-    @pytest.mark.search
+-    def test_search_article(self, driver):
+-        """搜索框输入关键词，验证结果列表非空。"""
+-        home_page = HomePage(driver)
+-        home_page.open_home()
+-        home_page.search_article(settings.SEARCH_KEYWORD)
+-        assert len(home_page.get_search_results()) > 0, "搜索结果列表为空"
+-
+-    @pytest.mark.list
+-    def test_category_switch(self, driver):
+-        """按分类切换 tab，验证列表刷新。"""
+-        home_page = HomePage(driver)
+-        home_page.open_home()
+-
+-        home_page.click_category("推荐")
+-        assert len(home_page.get_article_list()) > 0, "推荐分类列表为空"
+-
+-        home_page.click_category(settings.ARTICLE_CATEGORY)
+-        assert len(home_page.get_article_list()) > 0, \
+-            f"{settings.ARTICLE_CATEGORY} 分类列表为空"
+-
+-    @pytest.mark.negative
+-    def test_publish_without_login(self, driver):
+-        """未登录状态下点击发布，验证跳转到登录页或弹出登录框。"""
+-        home_page = HomePage(driver)
+-        home_page.open_home()
+-        if not home_page.is_login_entry_visible():
+-            home_page.logout()
+-
+-        try:
+-            home_page.click_publish_entry()
+-        except Exception:
+-            return  # 部分页面未登录时直接禁用发布按钮，视为通过
+-
+-        login_page = LoginPage(driver)
+-        assert (
+-            "login" in driver.current_url.lower()
+-            or login_page.is_element_visible(login_page.PHONE_INPUT, timeout=5)
+-            or home_page.is_login_entry_visible()
+-        ), "未登录点击发布应跳转登录页或弹出登录框"
+-
+-    @pytest.mark.delete
+-    def test_delete_own_article(self, logged_in_driver):
+-        """删除自己发布的文章，验证删除成功提示。"""
+-        publish_page = PublishPage(logged_in_driver)
+-        title = random_article_title()
+-        content_body = random_article_content(paragraphs=2)
+-        publish_page.publish_article(title, content_body)
+-        if not publish_page.is_publish_success():
+-            pytest.skip("前置发布失败，跳过删除用例")
+-
+-        home_page = HomePage(logged_in_driver)
+-        home_page.open_home()
+-        try:
+-            home_page.click_article_by_title(title[:8])
+-        except Exception:
+-            pytest.skip("未找到刚发布的文章，跳过删除用例")
+-
+-        detail_page = ArticleDetailPage(logged_in_driver)
+-        try:
+-            detail_page.delete_article()
+-        except Exception as e:
+-            pytest.skip(f"页面未提供删除入口或非作者本人: {e}")
+-
+-        assert detail_page.is_article_deleted(), "文章删除后未出现删除成功提示"
+-
+-
+-if __name__ == "__main__":
+-    pytest.main([__file__, "-v", "-s"])
+Index: xh_ui_auto/requirements.txt
+===================================================================
+diff --git a/xh_ui_auto/requirements.txt b/xh_ui_auto/requirements.txt
+deleted file mode 100644
+--- a/xh_ui_auto/requirements.txt	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,7 +0,0 @@
+-pytest>=7.4.0
+-selenium>=4.15.0
+-pytest-html>=4.1.0
+-pytest-rerunfailures>=12.0.0
+-pytest-xdist>=3.5.0
+-python-dotenv>=1.0.0
+-webdriver-manager>=4.0.0
+Index: xh_ui_auto/utils/csv_reader.py
+===================================================================
+diff --git a/xh_ui_auto/utils/csv_reader.py b/xh_ui_auto/utils/csv_reader.py
+deleted file mode 100644
+--- a/xh_ui_auto/utils/csv_reader.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,101 +0,0 @@
+-# File: utils/csv_reader.py
+-"""CSV 数据文件读取工具。
+-
+-提供通用的 CSV 读取函数，用于数据驱动测试。
+-- 使用 Python 内置 csv 模块，保持轻量，不引入 pandas。
+-- 自动跳过空行。
+-- 字符串首尾去空格，TRUE/FALSE 转为 Python 布尔值。
+-- 文件编码统一使用 utf-8-sig，兼容 Excel 编辑后产生的 BOM 头。
+-"""
+-import csv
+-import os
+-import logging
+-
+-logger = logging.getLogger(__name__)
+-
+-# TRUE/FALSE 字符串候选集合（大小写不敏感），用于布尔值转换
+-_TRUE_TOKENS = {"true", "t", "yes", "y", "1"}
+-_FALSE_TOKENS = {"false", "f", "no", "n", "0", ""}
+-
+-
+-def _convert_value(value: str):
+-    """对单个字段值进行类型转换。
+-
+-    - 去除首尾空格
+-    - 若为 TRUE/FALSE 字符串则转为 Python bool
+-    - 其余保持字符串
+-
+-    Args:
+-        value: 原始字符串值
+-
+-    Returns:
+-        转换后的值（str 或 bool）
+-    """
+-    if not isinstance(value, str):
+-        return value
+-    stripped = value.strip()
+-    lower = stripped.lower()
+-    if lower in _TRUE_TOKENS and lower != "":
+-        return True
+-    if lower in _FALSE_TOKENS:
+-        # 空字符串也算 False
+-        return False
+-    return stripped
+-
+-
+-def read_csv_to_list(file_path: str) -> list:
+-    """读取 CSV 文件并返回字典列表。
+-
+-    每条记录为一个 dict，键为表头字段名。
+-    - 自动跳过空行。
+-    - 字符串首尾去空格，TRUE/FALSE 转布尔值。
+-    - 文件不存在则抛出 FileNotFoundError。
+-
+-    Args:
+-        file_path: CSV 文件路径（相对路径会基于项目根目录解析）
+-
+-    Returns:
+-        List[dict]: 测试数据列表
+-
+-    Raises:
+-        FileNotFoundError: 文件不存在时抛出
+-    """
+-    # 支持相对路径：基于项目根目录解析
+-    if not os.path.isabs(file_path):
+-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+-        file_path = os.path.join(project_root, file_path)
+-
+-    if not os.path.exists(file_path):
+-        raise FileNotFoundError(
+-            f"CSV 数据文件不存在: {file_path}。请检查路径或创建示例数据文件。"
+-        )
+-
+-    data_list = []
+-    # 编码使用 utf-8-sig，兼容 Excel 编辑后的 BOM 头
+-    with open(file_path, "r", encoding="utf-8-sig", newline="") as f:
+-        reader = csv.DictReader(f)
+-        for row in reader:
+-            # 跳过完全空白的行（所有字段都为空）
+-            if not row or all(
+-                (v is None or str(v).strip() == "") for v in row.values()
+-            ):
+-                continue
+-            # 对每个字段进行类型转换
+-            converted = {k: _convert_value(v) for k, v in row.items() if k is not None}
+-            data_list.append(converted)
+-
+-    logger.info(f"从 {file_path} 读取到 {len(data_list)} 条测试数据")
+-    return data_list
+-
+-
+-def get_data_path(filename: str) -> str:
+-    """根据文件名返回 data 目录下的绝对路径。
+-
+-    Args:
+-        filename: CSV 文件名（如 "login_data.csv"）
+-
+-    Returns:
+-        绝对路径
+-    """
+-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+-    return os.path.join(project_root, "data", filename)
+Index: xh_ui_auto/testcases/conftest.py
+===================================================================
+diff --git a/xh_ui_auto/testcases/conftest.py b/xh_ui_auto/testcases/conftest.py
+deleted file mode 100644
+--- a/xh_ui_auto/testcases/conftest.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,107 +0,0 @@
+-# File: testcases/conftest.py
+-"""pytest 全局 fixtures 配置。
+-
+-提供：
+-- driver: 每个用例独立的 Chrome WebDriver
+-- logged_in_driver: 已登录态 WebDriver
+-- 失败用例自动截图到 reports/screenshots/
+-"""
+-import os
+-import sys
+-from datetime import datetime
+-
+-import pytest
+-from selenium import webdriver
+-from selenium.webdriver.chrome.options import Options as ChromeOptions
+-from selenium.webdriver.chrome.service import Service as ChromeService
+-from webdriver_manager.chrome import ChromeDriverManager
+-
+-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+-if PROJECT_ROOT not in sys.path:
+-    sys.path.insert(0, PROJECT_ROOT)
+-
+-from config.settings import settings
+-from utils.logger import logger
+-from pages.login_page import LoginPage
+-
+-
+-def _create_chrome_driver() -> webdriver.Chrome:
+-    """创建 Chrome WebDriver。"""
+-    options = ChromeOptions()
+-    if settings.HEADLESS:
+-        options.add_argument("--headless=new")
+-    options.add_argument("--disable-gpu")
+-    options.add_argument("--no-sandbox")
+-    options.add_argument("--disable-dev-shm-usage")
+-    options.add_argument("--disable-blink-features=AutomationControlled")
+-    options.add_argument(f"--window-size={settings.WINDOW_WIDTH},{settings.WINDOW_HEIGHT}")
+-    options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+-    options.add_experimental_option("useAutomationExtension", False)
+-
+-    service = ChromeService(ChromeDriverManager().install())
+-    driver = webdriver.Chrome(service=service, options=options)
+-    driver.set_page_load_timeout(settings.PAGE_LOAD_TIMEOUT)
+-    driver.implicitly_wait(settings.IMPLICIT_WAIT)
+-    driver.execute_cdp_cmd(
+-        "Page.addScriptToEvaluateOnNewDocument",
+-        {"source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"},
+-    )
+-    return driver
+-
+-
+-@pytest.fixture(scope="function")
+-def driver():
+-    """每个用例独立的 Chrome WebDriver。"""
+-    logger.info("========== 创建 WebDriver ==========")
+-    drv = _create_chrome_driver()
+-    drv.get(settings.BASE_URL)
+-    yield drv
+-    try:
+-        drv.quit()
+-    except Exception as e:
+-        logger.warning(f"关闭 WebDriver 异常: {e}")
+-    logger.info("========== WebDriver 已关闭 ==========")
+-
+-
+-@pytest.fixture(scope="function")
+-def logged_in_driver(driver):
+-    """已登录态 WebDriver；登录失败（如验证码）则跳过用例。"""
+-    login_page = LoginPage(driver)
+-    login_page.open_login_page()
+-    login_page.login_with_password(settings.TEST_PHONE, settings.TEST_PASSWORD)
+-    if not login_page.is_login_success():
+-        pytest.skip("登录失败，可能触发验证码。请使用白名单账号或手动预处理 Cookie。")
+-    yield driver
+-
+-
+-# ===== 命令行参数 =====
+-def pytest_addoption(parser):
+-    parser.addoption("--headless", action="store_true", default=False,
+-                     help="以 headless 模式运行浏览器")
+-
+-
+-@pytest.fixture(scope="session", autouse=True)
+-def _apply_cli_options(request):
+-    if request.config.getoption("--headless"):
+-        settings.HEADLESS = True
+-
+-
+-# ===== 失败自动截图 =====
+-@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+-def pytest_runtest_makereport(item, call):
+-    outcome = yield
+-    report = outcome.get_result()
+-    if report.when == "call" and report.failed:
+-        driver = item.funcargs.get("driver") or item.funcargs.get("logged_in_driver")
+-        if driver is None:
+-            return
+-        try:
+-            os.makedirs(settings.SCREENSHOT_DIR, exist_ok=True)
+-            filename = f"FAIL_{item.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+-            filepath = os.path.join(settings.SCREENSHOT_DIR, filename)
+-            driver.save_screenshot(filepath)
+-            logger.error(f"用例失败截图: {filepath}")
+-            if hasattr(report, "extra"):
+-                report.extra.append({"name": "screenshot", "path": filepath})
+-        except Exception as e:
+-            logger.error(f"失败截图异常: {e}")
+Index: xh_ui_auto/data/article_publish_data.csv
+===================================================================
+diff --git a/xh_ui_auto/data/article_publish_data.csv b/xh_ui_auto/data/article_publish_data.csv
+deleted file mode 100644
+--- a/xh_ui_auto/data/article_publish_data.csv	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,19 +0,0 @@
+-case_name,title,content,add_topic,expected_result
+-发布纯文本,测试标题_001,正文内容,FALSE,success
+-发布带话题,测试标题_002,今日热点讨论科技前沿,TRUE,success
+-超长标题,这是一个超过50个字符的超长标题用于测试前端截断功能XXXXXXXXXXXXXXXXXXXXXXXX,正文内容,FALSE,fail
+-空标题,,正文内容不为空,FALSE,fail
+-空正文,测试标题_003,,FALSE,fail
+-特殊字符正文,测试标题_004,<script>alert(1)</script> & <html>,FALSE,fail
+-标题含Emoji,😊测试标题_005,正文含Emoji 😄🎉,FALSE,success
+-标题两端空格,  标题前后有空格  ,正文正常,FALSE,success
+-话题含特殊符号,测试标题_006,正文内容,TRUE,success
+-超长正文,测试标题_007,"这是一段超过200个字符的正文内容，用于测试数据库字段长度限制和前端显示截断。重复填充数据：1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890",FALSE,fail
+-敏感词正文,测试标题_008,正文包含非法敏感词（如赌博、色情等）,FALSE,fail
+-标题与正文均空,,,FALSE,fail
+-重复发布相同内容,测试标题_009,相同正文内容,FALSE,success
+-发布后立即再次发布,测试标题_010,再次发布内容,FALSE,success
+-正文含SQL注入,测试标题_011,' OR '1'='1, FALSESQL注入尝试,FALSE,fail
+-话题为空但标记TRUE,测试标题_012,正文内容,TRUE,fail
+-标题首尾特殊字符,#测试标题_013#,正文正常,FALSE,success
+-标题为数字,123456,数字标题正文,FALSE,success
+Index: xh_ui_auto/pytest.ini
+===================================================================
+diff --git a/xh_ui_auto/pytest.ini b/xh_ui_auto/pytest.ini
+deleted file mode 100644
+--- a/xh_ui_auto/pytest.ini	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,33 +0,0 @@
+-[pytest]
+-# ===== 测试路径与发现 =====
+-testpaths = testcases
+-python_files = test_*.py
+-python_classes = Test*
+-python_functions = test_*
+-
+-# ===== 命令行默认参数 =====
+-# -v: 详细模式 | --html: HTML 报告 | --reruns: 失败重试 1 次
+-addopts =
+-    -v
+-    --html=reports/report.html
+-    --self-contained-html
+-    --reruns=1
+-    --reruns-delay=2
+-
+-# ===== 自定义标记 =====
+-markers =
+-    negative: 反向/异常用例
+-    login: 登录模块
+-    logout: 登出模块
+-    register: 注册模块
+-    publish: 发布文章模块
+-    search: 搜索模块
+-    list: 列表/分类切换
+-    delete: 删除文章
+-    user_info: 个人信息模块
+-
+-# ===== 日志 =====
+-log_cli = true
+-log_cli_level = INFO
+-log_cli_format = %(asctime)s [%(levelname)s] %(name)s - %(message)s
+-log_cli_date_format = %Y-%m-%d %H:%M:%S
+Index: xh_ui_auto/pages/base_page.py
+===================================================================
+diff --git a/xh_ui_auto/pages/base_page.py b/xh_ui_auto/pages/base_page.py
+deleted file mode 100644
+--- a/xh_ui_auto/pages/base_page.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,143 +0,0 @@
+-# File: pages/base_page.py
+-"""Page Object 基类。
+-
+-封装 Selenium 常用操作：find / click / input / wait / screenshot / iframe。
+-"""
+-import os
+-from datetime import datetime
+-
+-from selenium.webdriver.remote.webdriver import WebDriver
+-from selenium.webdriver.remote.webelement import WebElement
+-from selenium.webdriver.support.ui import WebDriverWait
+-from selenium.webdriver.support import expected_conditions as EC
+-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+-
+-from config.settings import settings
+-from utils.logger import logger
+-from utils.helpers import wait_for_ajax, safe_close_popup
+-
+-
+-class BasePage:
+-    """所有 Page 类的基类。"""
+-
+-    def __init__(self, driver: WebDriver):
+-        self.driver = driver
+-
+-    # ===== 导航 =====
+-    def open(self, url=None):
+-        """打开指定 URL，默认 BASE_URL；等待 Ajax 并尝试关闭弹窗。"""
+-        target = url or settings.BASE_URL
+-        logger.info(f"打开页面: {target}")
+-        self.driver.get(target)
+-        wait_for_ajax(self.driver)
+-        safe_close_popup(self.driver)
+-
+-    # ===== 元素查找 =====
+-    def find_element(self, locator: tuple, timeout=None) -> WebElement:
+-        """显式等待并返回出现的元素。"""
+-        timeout = timeout or settings.EXPLICIT_WAIT
+-        return WebDriverWait(self.driver, timeout, settings.POLL_FREQUENCY).until(
+-            EC.presence_of_element_located(locator)
+-        )
+-
+-    def find_elements(self, locator: tuple, timeout=None):
+-        """显式等待并返回多个元素。"""
+-        timeout = timeout or settings.EXPLICIT_WAIT
+-        return WebDriverWait(self.driver, timeout, settings.POLL_FREQUENCY).until(
+-            EC.presence_of_all_elements_located(locator)
+-        )
+-
+-    def find_visible_element(self, locator: tuple, timeout=None) -> WebElement:
+-        """显式等待并返回可见元素。"""
+-        timeout = timeout or settings.EXPLICIT_WAIT
+-        return WebDriverWait(self.driver, timeout, settings.POLL_FREQUENCY).until(
+-            EC.visibility_of_element_located(locator)
+-        )
+-
+-    # ===== 交互 =====
+-    def click(self, locator: tuple, timeout=None):
+-        """显式等待可点击后点击，自动滚动到元素中央。"""
+-        timeout = timeout or settings.EXPLICIT_WAIT
+-        element = WebDriverWait(self.driver, timeout, settings.POLL_FREQUENCY).until(
+-            EC.element_to_be_clickable(locator)
+-        )
+-        self.driver.execute_script(
+-            "arguments[0].scrollIntoView({block:'center'});", element
+-        )
+-        element.click()
+-        logger.info(f"点击元素: {locator}")
+-
+-    def click_element(self, element: WebElement):
+-        """对已查找到的元素点击（滚动到中央后点击）。"""
+-        self.driver.execute_script(
+-            "arguments[0].scrollIntoView({block:'center'});", element
+-        )
+-        element.click()
+-
+-    def input_text(self, locator: tuple, text: str, clear_first=True):
+-        """向定位器输入文本，默认先清空。"""
+-        element = self.find_visible_element(locator)
+-        if clear_first:
+-            element.clear()
+-        element.send_keys(text)
+-        logger.info(f"输入文本到 {locator}: {text}")
+-
+-    def input_text_to_element(self, element: WebElement, text: str, clear_first=True):
+-        """向已查找到的元素输入文本。"""
+-        if clear_first:
+-            element.clear()
+-        element.send_keys(text)
+-
+-    # ===== 等待 =====
+-    def wait_for_ajax_complete(self, timeout=None):
+-        """等待页面 Ajax 完成。"""
+-        return wait_for_ajax(self.driver, timeout)
+-
+-    # ===== 文本 =====
+-    def get_text(self, locator: tuple, timeout=None) -> str:
+-        """获取可见元素的文本。"""
+-        return self.find_visible_element(locator, timeout).text
+-
+-    # ===== 判断 =====
+-    def is_element_present(self, locator: tuple, timeout=None) -> bool:
+-        """元素是否存在（不抛异常）。"""
+-        try:
+-            self.find_element(locator, timeout or settings.SHORT_WAIT)
+-            return True
+-        except (TimeoutException, NoSuchElementException):
+-            return False
+-
+-    def is_element_visible(self, locator: tuple, timeout=None) -> bool:
+-        """元素是否可见。"""
+-        try:
+-            self.find_visible_element(locator, timeout or settings.SHORT_WAIT)
+-            return True
+-        except (TimeoutException, NoSuchElementException):
+-            return False
+-
+-    # ===== iframe =====
+-    def switch_to_frame(self, frame_locator):
+-        """切换到 iframe（接受定位器元组或 WebElement）。"""
+-        frame = self.find_element(frame_locator) if isinstance(frame_locator, tuple) \
+-            else frame_locator
+-        self.driver.switch_to.frame(frame)
+-        logger.info(f"切换到 iframe: {frame_locator}")
+-
+-    def switch_to_default_content(self):
+-        """切回主文档。"""
+-        self.driver.switch_to.default_content()
+-        logger.info("切换回主文档")
+-
+-    # ===== 截图 =====
+-    def screenshot(self, filename: str = None) -> str:
+-        """保存截图到 reports/screenshots/。"""
+-        os.makedirs(settings.SCREENSHOT_DIR, exist_ok=True)
+-        if not filename:
+-            filename = f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+-        filepath = os.path.join(settings.SCREENSHOT_DIR, f"{filename}.png")
+-        try:
+-            self.driver.save_screenshot(filepath)
+-            logger.info(f"截图已保存: {filepath}")
+-        except Exception as e:
+-            logger.error(f"截图失败: {e}")
+-        return filepath
+Index: xh_ui_auto/data/register_data.csv
+===================================================================
+diff --git a/xh_ui_auto/data/register_data.csv b/xh_ui_auto/data/register_data.csv
+deleted file mode 100644
+--- a/xh_ui_auto/data/register_data.csv	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,20 +0,0 @@
+-case_name,phone,password,nickname,sms_code,expected_result,expected_error_msg
+-注册_正常,13900139000,Reg@123456,新用户A,,success,
+-注册_手机号已存在,13800138000,Reg@123456,重复用户,,fail,该手机号已注册
+-注册_手机号格式错误,abcde,Reg@123456,格式错误用户,,fail,手机号格式不正确
+-注册_密码过短,13900139001,123,fail,短密码用户,,fail,密码长度不足
+-注册_验证码错误,13900139002,Reg@123456,验证码错,,fail,验证码错误
+-注册_验证码过期,13900139003,Reg@123456,过期验证,,fail,验证码已过期
+-注册_密码无特殊字符,13900139004,Reg123456,无特殊字符,,fail,密码必须包含特殊字符
+-注册_密码全数字,13900139005,12345678,纯数字密码,,fail,密码必须包含字母和特殊字符
+-注册_昵称超长,13900139006,Reg@123456,这是一个超过20个字符的超长昵称测试,,fail,昵称长度超出限制
+-注册_昵称含特殊符号,13900139007,Reg@123456,@#$%^&*(),,fail,昵称包含非法字符
+-注册_昵称为空,13900139008,Reg@123456,,,fail,昵称不能为空
+-注册_密码含空格,13900139009,Reg@ 123456,空格密码,,fail,密码不能包含空格
+-注册_手机号前导空格, 13900139010,Reg@123456,前导空格手机,,fail,手机号格式不正确
+-注册_手机号含非数字,13900139A00,Reg@123456,字母手机,,fail,手机号格式不正确
+-注册_手机号长度不足,139001390,Reg@123456,短手机,,fail,手机号格式不正确
+-注册_手机号超长,139001390001,Reg@123456,长手机,,fail,手机号格式不正确
+-注册_正常带短信验证码,13900139011,Reg@123456,验证码注册,123456,success,
+-注册_密码与昵称相同,13900139012,Reg@123456,Reg@123456,,fail,密码不能与昵称相同
+-注册_手机号已注册但未激活,13800138000,Reg@123456,未激活用户,,fail,该手机号已注册，请直接登录
+Index: xh_ui_auto/pages/register_page.py
+===================================================================
+diff --git a/xh_ui_auto/pages/register_page.py b/xh_ui_auto/pages/register_page.py
+deleted file mode 100644
+--- a/xh_ui_auto/pages/register_page.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,79 +0,0 @@
+-# File: pages/register_page.py
+-"""注册页面 Page Object。
+-
+-星火新闻 PC 网页版可能没有独立的注册入口（通常依赖移动端 App 或第三方登录注册），
+-本类提供基础封装，若页面无对应入口则相关方法会优雅降级。
+-"""
+-from selenium.webdriver.common.by import By
+-
+-from pages.base_page import BasePage
+-from utils.logger import logger
+-
+-
+-class RegisterPage(BasePage):
+-    """注册页面封装。"""
+-
+-    # ===== 元素定位器 =====
+-    REGISTER_ENTRY = (By.XPATH, "//*[contains(text(),'注册') or contains(text(),'立即注册')]")
+-    PHONE_INPUT = (By.XPATH, "//input[@placeholder*='手机号' or @name='mobile']")
+-    SMS_CODE_INPUT = (By.XPATH, "//input[@placeholder*='验证码' or @name='code']")
+-    SEND_SMS_BUTTON = (By.XPATH, "//button[contains(text(),'获取验证码') or contains(text(),'发送')]")
+-    PASSWORD_INPUT = (By.XPATH, "//input[@type='password' or @name='password']")
+-    NICKNAME_INPUT = (By.XPATH, "//input[@placeholder*='昵称' or @name='nickname']")
+-    AGREE_CHECKBOX = (By.XPATH, "//input[@type='checkbox']")
+-    REGISTER_SUBMIT_BUTTON = (By.XPATH, "//button[contains(text(),'注册') and not(contains(text(),'获取'))]")
+-    ERROR_TIP = (By.XPATH, "//div[contains(@class,'error') or contains(@class,'tip')]")
+-
+-    def open_register_page(self):
+-        """打开注册页面（若存在独立注册入口）。"""
+-        self.open()
+-        try:
+-            if self.is_element_present(self.REGISTER_ENTRY, timeout=3):
+-                self.click(self.REGISTER_ENTRY)
+-                logger.info("已打开注册页面")
+-            else:
+-                logger.warning("未找到注册入口，可能星火新闻 PC 端不支持独立注册")
+-        except Exception as e:
+-            logger.warning(f"打开注册页面失败: {e}")
+-
+-    def fill_register_form(self, phone: str, password: str, nickname: str = "", sms_code: str = ""):
+-        """填写注册表单。
+-
+-        Args:
+-            phone: 手机号
+-            password: 密码
+-            nickname: 昵称（可选）
+-            sms_code: 短信验证码（实际场景需手动获取并传入）
+-        """
+-        self.input_text(self.PHONE_INPUT, phone)
+-        if self.is_element_present(self.SEND_SMS_BUTTON, timeout=2):
+-            self.click(self.SEND_SMS_BUTTON)
+-        if sms_code:
+-            self.input_text(self.SMS_CODE_INPUT, sms_code)
+-        self.input_text(self.PASSWORD_INPUT, password)
+-        if nickname and self.is_element_present(self.NICKNAME_INPUT, timeout=2):
+-            self.input_text(self.NICKNAME_INPUT, nickname)
+-        # 勾选同意协议
+-        try:
+-            checkbox = self.find_element(self.AGREE_CHECKBOX, timeout=2)
+-            if not checkbox.is_selected():
+-                checkbox.click()
+-        except Exception:
+-            pass
+-
+-    def submit_register(self):
+-        """提交注册。"""
+-        self.click(self.REGISTER_SUBMIT_BUTTON)
+-        self.wait_for_ajax_complete()
+-        logger.info("已提交注册")
+-
+-    def get_error_tip(self) -> str:
+-        """获取注册错误提示。"""
+-        try:
+-            return self.get_text(self.ERROR_TIP, timeout=5)
+-        except Exception:
+-            return ""
+-
+-    def is_register_supported(self) -> bool:
+-        """判断页面是否支持独立注册。"""
+-        return self.is_element_present(self.REGISTER_ENTRY, timeout=3)
+Index: xh_ui_auto/utils/__init__.py
+===================================================================
+diff --git a/xh_ui_auto/utils/__init__.py b/xh_ui_auto/utils/__init__.py
+deleted file mode 100644
+--- a/xh_ui_auto/utils/__init__.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,1 +0,0 @@
+-"""utils 包初始化文件。"""
+Index: xh_ui_auto/utils/helpers.py
+===================================================================
+diff --git a/xh_ui_auto/utils/helpers.py b/xh_ui_auto/utils/helpers.py
+deleted file mode 100644
+--- a/xh_ui_auto/utils/helpers.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,78 +0,0 @@
+-# File: utils/helpers.py
+-"""辅助函数集合。
+-
+-仅保留 base_page 不便承载的工具函数：
+-- 随机数据生成（手机号/字符串/中文/文章标题/正文）
+-- Ajax 等待（page 层会复用）
+-- 广告弹窗安全关闭
+-- 手机号掩码格式化
+-"""
+-import random
+-import string
+-import time
+-
+-from config.settings import settings
+-
+-
+-def random_string(length=8):
+-    """生成指定长度的随机字符串（大小写字母 + 数字）。"""
+-    return "".join(random.choices(string.ascii_letters + string.digits, k=length))
+-
+-
+-def random_chinese_text(length=10):
+-    """生成指定长度的随机中文字符串。"""
+-    return "".join(chr(random.randint(0x4E00, 0x9FA5)) for _ in range(length))
+-
+-
+-def random_article_title():
+-    """生成随机的文章标题。"""
+-    return f"自动化测试文章_{random_string(6)}_{random_chinese_text(4)}"
+-
+-
+-def random_article_content(paragraphs=3):
+-    """生成随机的文章正文内容。"""
+-    return "\n".join(
+-        f"第{i + 1}段：{random_chinese_text(20)}。" for i in range(paragraphs)
+-    )
+-
+-
+-def wait_for_ajax(driver, timeout=None):
+-    """等待页面 Ajax 请求完成（兼容 jQuery 与原生 readyState）。"""
+-    timeout = timeout or settings.AJAX_WAIT_TIMEOUT
+-    end_time = time.time() + timeout
+-    while time.time() < end_time:
+-        try:
+-            jquery_active = driver.execute_script(
+-                "return (typeof jQuery != 'undefined') ? jQuery.active : 0;"
+-            )
+-            ready_state = driver.execute_script("return document.readyState;")
+-            if jquery_active == 0 and ready_state == "complete":
+-                return True
+-        except Exception:
+-            return False
+-        time.sleep(settings.POLL_FREQUENCY)
+-    return False
+-
+-
+-def safe_close_popup(driver):
+-    """安全关闭常见广告弹窗，失败则忽略继续。"""
+-    popup_locators = [
+-        ("xpath", "//div[contains(@class,'ad')]//i[contains(@class,'close')]"),
+-        ("xpath", "//button[contains(text(),'关闭')]"),
+-        ("xpath", "//div[contains(@class,'modal')]//span[contains(@class,'close')]"),
+-    ]
+-    for by, value in popup_locators:
+-        try:
+-            element = driver.find_element(by, value)
+-            if element.is_displayed():
+-                element.click()
+-                time.sleep(0.5)
+-        except Exception:
+-            continue
+-
+-
+-def mask_phone(phone):
+-    """返回手机号掩码格式（如 138****0000）。"""
+-    if len(phone) != 11:
+-        return phone
+-    return f"{phone[:3]}****{phone[7:]}"
+Index: xh_ui_auto/data/user_update_data.csv
+===================================================================
+diff --git a/xh_ui_auto/data/user_update_data.csv b/xh_ui_auto/data/user_update_data.csv
+deleted file mode 100644
+--- a/xh_ui_auto/data/user_update_data.csv	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,20 +0,0 @@
+-case_name,new_nickname,expected_result,expected_error_msg
+-修改昵称_正常,自动化测试用户A,success,
+-修改昵称_特殊字符,@#$%^&*(),fail,昵称包含非法字符
+-修改昵称_超长,这是一个超过20个字符的昵称用于测试前端长度限制,fail,昵称长度超出限制
+-修改昵称_空,,fail,昵称不能为空
+-修改昵称_前后空格,  昵称前后有空格  ,success,  （实际应去除前后空格存储）
+-修改昵称_中间空格,自动化 测试 用户,success,
+-修改昵称_纯数字,1234567890,success,
+-修改昵称_Emoji,😊自动化😎,success,
+-修改昵称_已存在相同昵称,自动化测试用户A,success,  （允许重名，取决于业务逻辑）
+-修改昵称_含SQL注入,' OR '1'='1,success,  （应为成功转义，不被攻击）
+-修改昵称_含换行符,测试\n换行,success,  （应正常过滤或转义）
+-修改昵称_含Tab,测试\t制表符,success,
+-修改昵称_首尾特殊符号_合法,#合法昵称#,success,
+-修改昵称_中文超长,这是一个超过二十个汉字的中文昵称用于测试超长情况,fail,昵称长度超出限制
+-修改昵称_空字符串但含空格,   ,fail,昵称不能为空
+-修改昵称_长数字串,123456789012345678901234567890,fail,昵称长度超出限制
+-修改昵称_敏感词,政治敏感词,fail,昵称包含敏感词
+-修改昵称_正常英文,JohnDoe,success,
+-修改昵称_混合大小写,AbCdEfG,success,
+Index: xh_ui_auto/config/__init__.py
+===================================================================
+diff --git a/xh_ui_auto/config/__init__.py b/xh_ui_auto/config/__init__.py
+deleted file mode 100644
+--- a/xh_ui_auto/config/__init__.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,1 +0,0 @@
+-"""config 包初始化文件。"""
+Index: xh_ui_auto/pages/login_page.py
+===================================================================
+diff --git a/xh_ui_auto/pages/login_page.py b/xh_ui_auto/pages/login_page.py
+deleted file mode 100644
+--- a/xh_ui_auto/pages/login_page.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,109 +0,0 @@
+-# File: pages/login_page.py
+-"""登录页面 Page Object。
+-
+-支持手机号/密码登录，处理 QQ 登录 iframe 切换。
+-注意：星火新闻登录可能触发滑块验证码，需使用白名单账号或手动预处理 Cookie。
+-"""
+-from selenium.webdriver.common.by import By
+-
+-from pages.base_page import BasePage
+-from utils.logger import logger
+-
+-
+-class LoginPage(BasePage):
+-    """登录页面封装。"""
+-
+-    # ===== 页面元素定位器（统一放在类顶部便于维护） =====
+-    # 登录入口
+-    LOGIN_ENTRY = (By.XPATH, "//div[contains(text(),'登录')] | //a[contains(text(),'登录')]")
+-
+-    # 登录方式切换 Tab
+-    PHONE_LOGIN_TAB = (By.XPATH, "//*[contains(text(),'手机号登录')]")
+-    PASSWORD_LOGIN_TAB = (By.XPATH, "//*[contains(text(),'密码登录')]")
+-
+-    # 输入框
+-    PHONE_INPUT = (By.XPATH, "//input[@placeholder='请输入手机号' or @name='mobile' or @type='tel']")
+-    PASSWORD_INPUT = (By.XPATH, "//input[@placeholder='请输入密码' or @type='password' or @name='password']")
+-    CAPTCHA_INPUT = (By.XPATH, "//input[@placeholder*='验证码' or @name='captcha']")
+-
+-    # 登录按钮
+-    LOGIN_BUTTON = (By.XPATH, "//button[contains(text(),'登录') or contains(@class,'login-btn')]")
+-
+-    # 错误提示
+-    ERROR_TIP = (By.XPATH, "//div[contains(@class,'error') or contains(@class,'tip') or contains(@class,'toast')]")
+-
+-    # QQ 登录相关
+-    QQ_LOGIN_ICON = (By.XPATH, "//i[contains(@class,'qq') or @title='QQ登录']")
+-    QQ_LOGIN_IFRAME = (By.ID, "ptlogin_iframe")
+-    QQ_ACCOUNT_INPUT = (By.ID, "u")
+-    QQ_PASSWORD_INPUT = (By.ID, "p")
+-    QQ_LOGIN_BTN = (By.ID, "login_button")
+-
+-    # 登录后右上角用户头像/昵称
+-    USER_AVATAR = (By.XPATH, "//div[contains(@class,'avatar')] | //img[contains(@class,'avatar')]")
+-    USER_NICKNAME = (By.XPATH, "//div[contains(@class,'user')]//span[contains(@class,'name')]")
+-
+-    def open_login_page(self):
+-        """打开登录页面。"""
+-        self.open()
+-        # 首页可能直接有登录入口
+-        if self.is_element_present(self.LOGIN_ENTRY):
+-            self.click(self.LOGIN_ENTRY)
+-        logger.info("已打开登录页面")
+-
+-    def switch_to_password_login(self):
+-        """切换到密码登录方式（部分入口默认为验证码登录）。"""
+-        try:
+-            if self.is_element_present(self.PASSWORD_LOGIN_TAB, timeout=3):
+-                self.click(self.PASSWORD_LOGIN_TAB)
+-                logger.info("已切换到密码登录")
+-        except Exception as e:
+-            logger.warning(f"切换密码登录方式失败（可能默认即密码登录）: {e}")
+-
+-    def login_with_password(self, phone: str, password: str):
+-        """使用手机号 + 密码登录。
+-
+-        Args:
+-            phone: 手机号
+-            password: 密码
+-
+-        注意：若触发验证码需使用白名单账号或手动预处理 Cookie
+-        """
+-        logger.info(f"开始手机号密码登录: phone={phone}")
+-        self.switch_to_password_login()
+-        self.input_text(self.PHONE_INPUT, phone)
+-        self.input_text(self.PASSWORD_INPUT, password)
+-        # 处理可能的验证码输入框（若存在）
+-        if self.is_element_present(self.CAPTCHA_INPUT, timeout=2):
+-            logger.warning("检测到验证码输入框，请使用白名单账号或手动预处理 Cookie")
+-        self.click(self.LOGIN_BUTTON)
+-        self.wait_for_ajax_complete()
+-
+-    def login_with_qq(self, qq_account: str, qq_password: str):
+-        """使用 QQ 账号登录（处理 iframe 切换）。
+-
+-        Args:
+-            qq_account: QQ 号
+-            qq_password: QQ 密码
+-        """
+-        logger.info("使用 QQ 登录")
+-        self.click(self.QQ_LOGIN_ICON)
+-        # 切换到 QQ 登录 iframe
+-        self.switch_to_frame(self.QQ_LOGIN_IFRAME)
+-        self.input_text(self.QQ_ACCOUNT_INPUT, qq_account)
+-        self.input_text(self.QQ_PASSWORD_INPUT, qq_password)
+-        self.click(self.QQ_LOGIN_BTN)
+-        # QQ 登录完成后切回主文档
+-        self.switch_to_default_content()
+-
+-    def get_error_tip(self) -> str:
+-        """获取登录失败时的错误提示文本。"""
+-        try:
+-            return self.get_text(self.ERROR_TIP, timeout=5)
+-        except Exception:
+-            return ""
+-
+-    def is_login_success(self) -> bool:
+-        """判断是否登录成功（右上角出现用户头像/昵称）。"""
+-        return self.is_element_visible(self.USER_AVATAR, timeout=10) or \
+-               self.is_element_visible(self.USER_NICKNAME, timeout=3)
+Index: xh_ui_auto/pages/__init__.py
+===================================================================
+diff --git a/xh_ui_auto/pages/__init__.py b/xh_ui_auto/pages/__init__.py
+deleted file mode 100644
+--- a/xh_ui_auto/pages/__init__.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,1 +0,0 @@
+-"""pages 包初始化文件。"""
+Index: .gitattributes
+===================================================================
+diff --git a/.gitattributes b/.gitattributes
+deleted file mode 100644
+--- a/.gitattributes	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,2 +0,0 @@
+-# Auto detect text files and perform LF normalization
+-* text=auto
+Index: xh_ui_auto/config/settings.py
+===================================================================
+diff --git a/xh_ui_auto/config/settings.py b/xh_ui_auto/config/settings.py
+deleted file mode 100644
+--- a/xh_ui_auto/config/settings.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,52 +0,0 @@
+-# File: config/settings.py
+-"""全局配置类。
+-
+-集中管理 BASE_URL、超时、Headless 开关、测试账号等。
+-敏感账号从 .env 读取，避免硬编码。
+-"""
+-import os
+-from dotenv import load_dotenv
+-
+-# 加载 .env 文件
+-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+-
+-
+-class Config:
+-    """自动化测试全局配置。"""
+-
+-    # ===== 站点 =====
+-    BASE_URL = "https://www.xinhup.com/"
+-
+-    # ===== 浏览器 =====
+-    HEADLESS = os.getenv("HEADLESS", "false").lower() == "true"
+-    WINDOW_WIDTH = 1440
+-    WINDOW_HEIGHT = 900
+-    PAGE_LOAD_TIMEOUT = 30  # 页面加载超时（秒）
+-    IMPLICIT_WAIT = 5  # 隐式等待（秒）
+-
+-    # ===== 显式等待 =====
+-    EXPLICIT_WAIT = 15  # 显式等待最长时长（秒）
+-    SHORT_WAIT = 5
+-    POLL_FREQUENCY = 0.5  # 轮询间隔（秒）
+-
+-    # ===== 测试账号（从 .env 读取） =====
+-    # 注意：星火新闻登录可能触发验证码，需白名单账号或预处理 Cookie
+-    TEST_PHONE = os.getenv("TEST_PHONE", "13800000000")
+-    TEST_PASSWORD = os.getenv("TEST_PASSWORD", "Test123456")
+-    INVALID_PHONE = "12345"  # 格式错误的手机号
+-
+-    # ===== 路径 =====
+-    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+-    REPORT_DIR = os.path.join(PROJECT_ROOT, "reports")
+-    SCREENSHOT_DIR = os.path.join(REPORT_DIR, "screenshots")
+-
+-    # ===== 异步加载 =====
+-    AJAX_WAIT_TIMEOUT = 10
+-
+-    # ===== 测试数据 =====
+-    SEARCH_KEYWORD = "科技"
+-    ARTICLE_CATEGORY = "科技"
+-
+-
+-# 全局单例
+-settings = Config()
+Index: xh_ui_auto/data/login_data.csv
+===================================================================
+diff --git a/xh_ui_auto/data/login_data.csv b/xh_ui_auto/data/login_data.csv
+deleted file mode 100644
+--- a/xh_ui_auto/data/login_data.csv	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,19 +0,0 @@
+-case_name,phone,password,expected_result,expected_error_msg
+-正向登录,13800138000,Test@123456,success,
+-密码错误,13800138000,WrongPass,fail,账号或密码错误
+-手机号空,,Test@123456,fail,请输入手机号
+-手机号格式错误,12345,Test@123456,fail,手机号格式不正确
+-密码空,13800138000,,fail,请输入密码
+-手机号前导空格, 13800138000,Test@123456,fail,手机号格式不正确
+-手机号后导空格,13800138000 ,Test@123456,fail,手机号格式不正确
+-密码含前导空格,13800138000, Test@123456,fail,账号或密码错误
+-手机号含字母,1380013800A,Test@123456,fail,手机号格式不正确
+-手机号长度不足,13800138,Test@123456,fail,手机号格式不正确
+-手机号超长,138001380001234,Test@123456,fail,手机号格式不正确
+-密码为纯数字,13800138000,12345678,fail,账号或密码错误
+-密码为常见弱密码,13800138000,password123,fail,账号或密码错误
+-连续错误3次,13800138000,WrongPass1,fail,账号或密码错误
+-连续错误5次锁定,13800138000,WrongPass2,fail,账号已被锁定，请稍后重试
+-手机号未注册,13900000000,Test@123456,fail,账号或密码错误
+-密码含特殊字符（正确）,13800138000,Test@#$%123,success,
+-手机号正确但密码为空且空格,13800138000, ,fail,请输入密码
+\ No newline at end of file
+Index: xh_ui_auto/pages/home_page.py
+===================================================================
+diff --git a/xh_ui_auto/pages/home_page.py b/xh_ui_auto/pages/home_page.py
+deleted file mode 100644
+--- a/xh_ui_auto/pages/home_page.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,121 +0,0 @@
+-# File: pages/home_page.py
+-"""首页 Page Object。
+-
+-封装文章列表、点击进入详情、搜索、分类切换等操作。
+-"""
+-from selenium.webdriver.common.by import By
+-from selenium.webdriver.common.keys import Keys
+-
+-from pages.base_page import BasePage
+-from utils.logger import logger
+-
+-
+-class HomePage(BasePage):
+-    """星火新闻首页封装。"""
+-
+-    # ===== 元素定位器 =====
+-    # 顶部导航
+-    SEARCH_INPUT = (By.XPATH, "//input[@placeholder*='搜索' or contains(@class,'search-input')]")
+-    SEARCH_BUTTON = (By.XPATH, "//button[contains(@class,'search') or @aria-label='搜索']")
+-
+-    # 分类 Tab
+-    CATEGORY_TABS = (By.XPATH, "//div[contains(@class,'channel')]//a | //nav//a[contains(@class,'tab')]")
+-
+-    # 文章列表项
+-    ARTICLE_ITEMS = (By.XPATH, "//div[contains(@class,'feed')]//a[contains(@href,'article')] | //div[contains(@class,'article-item')]")
+-
+-    # 登录入口（未登录状态）
+-    LOGIN_ENTRY = (By.XPATH, "//*[contains(text(),'登录')]")
+-
+-    # 发布入口
+-    PUBLISH_ENTRY = (By.XPATH, "//*[contains(text(),'发布') and (ancestor::button or ancestor::a)]")
+-
+-    # 用户头像入口
+-    USER_AVATAR = (By.XPATH, "//div[contains(@class,'avatar')] | //img[contains(@class,'avatar')]")
+-
+-    # 退出登录
+-    LOGOUT_BUTTON = (By.XPATH, "//*[contains(text(),'退出') or contains(text(),'退出登录')]")
+-
+-    def open_home(self):
+-        """打开星火新闻首页。"""
+-        self.open()
+-
+-    def search_article(self, keyword: str):
+-        """在首页搜索框输入关键词并搜索。
+-
+-        Args:
+-            keyword: 搜索关键词
+-        """
+-        logger.info(f"搜索文章: {keyword}")
+-        search_box = self.find_visible_element(self.SEARCH_INPUT)
+-        self.input_text_to_element(search_box, keyword)
+-        search_box.send_keys(Keys.ENTER)
+-        self.wait_for_ajax_complete()
+-
+-    def get_search_results(self):
+-        """获取搜索结果列表文本。"""
+-        results = []
+-        try:
+-            items = self.find_elements(self.ARTICLE_ITEMS, timeout=10)
+-            for item in items:
+-                text = item.text.strip()
+-                if text:
+-                    results.append(text)
+-        except Exception as e:
+-            logger.warning(f"获取搜索结果失败: {e}")
+-        return results
+-
+-    def click_category(self, category_name: str):
+-        """点击指定分类 Tab。
+-
+-        Args:
+-            category_name: 分类名称（如 "推荐"、"科技"）
+-        """
+-        logger.info(f"切换分类: {category_name}")
+-        locator = (By.XPATH, f"//a[contains(text(),'{category_name}')] | //span[contains(text(),'{category_name}')]")
+-        self.click(locator)
+-        self.wait_for_ajax_complete()
+-
+-    def get_article_list(self):
+-        """获取首页文章列表的标题文本。"""
+-        titles = []
+-        try:
+-            items = self.find_elements(self.ARTICLE_ITEMS, timeout=10)
+-            for item in items:
+-                text = item.text.strip()
+-                if text:
+-                    titles.append(text)
+-        except Exception as e:
+-            logger.warning(f"获取文章列表失败: {e}")
+-        return titles
+-
+-    def click_article_by_title(self, title_keyword: str):
+-        """根据标题关键词点击文章。
+-
+-        Args:
+-            title_keyword: 标题中包含的关键词
+-        """
+-        locator = (By.XPATH, f"//a[contains(text(),'{title_keyword}')]")
+-        self.click(locator)
+-        self.wait_for_ajax_complete()
+-
+-    def is_login_entry_visible(self) -> bool:
+-        """判断登录入口是否可见（用于登出后验证）。"""
+-        return self.is_element_visible(self.LOGIN_ENTRY, timeout=5)
+-
+-    def click_publish_entry(self):
+-        """点击发布按钮。"""
+-        self.click(self.PUBLISH_ENTRY)
+-        self.wait_for_ajax_complete()
+-
+-    def click_user_avatar(self):
+-        """点击右上角用户头像，弹出下拉菜单。"""
+-        self.click(self.USER_AVATAR)
+-
+-    def logout(self):
+-        """退出登录。"""
+-        logger.info("执行退出登录")
+-        self.click_user_avatar()
+-        if self.is_element_present(self.LOGOUT_BUTTON, timeout=3):
+-            self.click(self.LOGOUT_BUTTON)
+-            self.wait_for_ajax_complete()
+Index: xh_ui_auto/pages/article_detail_page.py
+===================================================================
+diff --git a/xh_ui_auto/pages/article_detail_page.py b/xh_ui_auto/pages/article_detail_page.py
+deleted file mode 100644
+--- a/xh_ui_auto/pages/article_detail_page.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,60 +0,0 @@
+-# File: pages/article_detail_page.py
+-"""文章详情页 Page Object。
+-
+-封装详情查看、内容验证、删除文章等操作。
+-"""
+-from selenium.webdriver.common.by import By
+-
+-from pages.base_page import BasePage
+-from utils.logger import logger
+-
+-
+-class ArticleDetailPage(BasePage):
+-    """文章详情页封装。"""
+-
+-    # ===== 元素定位器 =====
+-    ARTICLE_TITLE = (By.XPATH, "//h1 | //div[contains(@class,'article-title')]")
+-    ARTICLE_CONTENT = (
+-        By.XPATH,
+-        "//div[contains(@class,'article-content')] | //div[contains(@class,'ProseMirror')]",
+-    )
+-    MORE_BUTTON = (By.XPATH, "//*[contains(@class,'more') or @aria-label='更多']")
+-    DELETE_OPTION = (By.XPATH, "//*[contains(text(),'删除')]")
+-    DELETE_CONFIRM_BUTTON = (By.XPATH, "//button[contains(text(),'确定') or contains(text(),'确认')]")
+-    SUCCESS_TIP = (By.XPATH, "//*[contains(text(),'删除成功')]")
+-
+-    def get_article_title(self) -> str:
+-        """获取文章标题。"""
+-        return self.get_text(self.ARTICLE_TITLE, timeout=10)
+-
+-    def get_article_content(self) -> str:
+-        """获取文章正文内容。"""
+-        return self.get_text(self.ARTICLE_CONTENT, timeout=10)
+-
+-    def delete_article(self):
+-        """删除当前文章：点击更多 -> 删除 -> 确认。"""
+-        logger.info("执行删除文章")
+-        self.click(self.MORE_BUTTON)
+-        self.click(self.DELETE_OPTION)
+-        if self.is_element_present(self.DELETE_CONFIRM_BUTTON, timeout=3):
+-            self.click(self.DELETE_CONFIRM_BUTTON)
+-            self.wait_for_ajax_complete()
+-
+-    def is_article_deleted(self) -> bool:
+-        """判断文章是否已被删除（出现删除成功提示或内容失效提示）。"""
+-        return (
+-            self.is_element_visible(self.SUCCESS_TIP, timeout=5)
+-            or self.is_element_visible(
+-                (By.XPATH, "//*[contains(text(),'已删除') or contains(text(),'不存在')]"),
+-                timeout=3,
+-            )
+-        )
+-
+-    def verify_content_matches(self, expected_title: str, expected_content_part: str) -> bool:
+-        """验证详情页内容与发布内容一致。"""
+-        actual_title = self.get_article_title()
+-        actual_content = self.get_article_content()
+-        title_match = expected_title in actual_title or actual_title in expected_title
+-        content_match = expected_content_part in actual_content
+-        logger.info(f"内容验证: title_match={title_match}, content_match={content_match}")
+-        return title_match and content_match
+Index: xh_ui_auto/testcases/test_user_center.py
+===================================================================
+diff --git a/xh_ui_auto/testcases/test_user_center.py b/xh_ui_auto/testcases/test_user_center.py
+deleted file mode 100644
+--- a/xh_ui_auto/testcases/test_user_center.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,82 +0,0 @@
+-# File: testcases/test_user_center.py
+-"""个人中心测试用例（@pytest.mark.parametrize 数据驱动）。
+-
+-修改昵称用例从 data/user_update_data.csv 读取，通过
+-@pytest.mark.parametrize 装饰器注入参数。
+-"""
+-import pytest
+-
+-from config.settings import settings
+-from pages.user_center_page import UserCenterPage
+-from utils.csv_reader import read_csv_to_list, get_data_path
+-from utils.helpers import mask_phone
+-
+-# 模块级加载 CSV：@parametrize 在收集阶段求值，必须模块级读取
+-USER_UPDATE_DATA = read_csv_to_list(get_data_path("user_update_data.csv"))
+-
+-
+-class TestUserCenter:
+-    """个人中心模块测试。"""
+-
+-    @pytest.mark.user_info
+-    def test_get_user_info(self, logged_in_driver):
+-        """获取个人信息：昵称非空、手机号掩码格式正确。"""
+-        user_center = UserCenterPage(logged_in_driver)
+-        user_center.open_user_center()
+-
+-        nickname = user_center.get_nickname()
+-        assert nickname, "个人中心未显示昵称"
+-
+-        phone_mask_text = user_center.get_phone_mask()
+-        assert phone_mask_text, "个人中心未显示手机号信息"
+-        assert user_center.verify_phone_mask_format(phone_mask_text), \
+-            f"手机号掩码格式不正确: {phone_mask_text}"
+-
+-    @pytest.mark.user_info
+-    @pytest.mark.parametrize(
+-        "case",
+-        USER_UPDATE_DATA,
+-        ids=[r["case_name"] for r in USER_UPDATE_DATA],
+-    )
+-    def test_modify_nickname(self, logged_in_driver, case):
+-        """参数化：修改昵称（正常/特殊字符/超长/空）。"""
+-        new_nickname = case["new_nickname"]
+-        expected = case["expected_result"]
+-        case_name = case["case_name"]
+-
+-        user_center = UserCenterPage(logged_in_driver)
+-        user_center.open_user_center()
+-        user_center.modify_nickname(new_nickname)
+-
+-        if expected == "success":
+-            assert user_center.is_modify_success(), (
+-                f"[{case_name}] 期望修改成功，但未出现成功提示"
+-            )
+-            user_center.open_user_center()
+-            updated = user_center.get_nickname()
+-            assert new_nickname in updated or updated in new_nickname, (
+-                f"[{case_name}] 昵称修改未生效，"
+-                f"期望包含 '{new_nickname}'，实际 '{updated}'"
+-            )
+-        else:
+-            modify_success = user_center.is_modify_success()
+-            user_center.open_user_center()
+-            updated = user_center.get_nickname()
+-            assert not modify_success or new_nickname not in updated, (
+-                f"[{case_name}] 期望修改失败，但实际修改成功"
+-            )
+-
+-    @pytest.mark.user_info
+-    def test_phone_mask_matches_login(self, logged_in_driver):
+-        """验证个人中心显示的手机号掩码与登录账号一致。"""
+-        user_center = UserCenterPage(logged_in_driver)
+-        user_center.open_user_center()
+-
+-        phone_mask_text = user_center.get_phone_mask()
+-        expected_mask = mask_phone(settings.TEST_PHONE)
+-        assert expected_mask in phone_mask_text, \
+-            f"手机号掩码与登录账号不一致，期望包含 {expected_mask}，实际 {phone_mask_text}"
+-
+-
+-if __name__ == "__main__":
+-    pytest.main([__file__, "-v", "-s"])
+Index: xh_ui_auto/pages/user_center_page.py
+===================================================================
+diff --git a/xh_ui_auto/pages/user_center_page.py b/xh_ui_auto/pages/user_center_page.py
+deleted file mode 100644
+--- a/xh_ui_auto/pages/user_center_page.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,70 +0,0 @@
+-# File: pages/user_center_page.py
+-"""个人中心 Page Object。
+-
+-封装查看/修改昵称、查看手机号掩码等操作。
+-"""
+-import re
+-
+-from selenium.webdriver.common.by import By
+-
+-from pages.base_page import BasePage
+-from utils.logger import logger
+-
+-
+-class UserCenterPage(BasePage):
+-    """个人中心页面封装。"""
+-
+-    # ===== 元素定位器 =====
+-    USER_AVATAR = (By.XPATH, "//div[contains(@class,'avatar')] | //img[contains(@class,'avatar')]")
+-    USER_CENTER_LINK = (By.XPATH, "//*[contains(text(),'个人主页') or contains(text(),'我的主页')]")
+-
+-    NICKNAME_DISPLAY = (
+-        By.XPATH,
+-        "//div[contains(@class,'name') or contains(@class,'nickname')]//span | //h2[contains(@class,'name')]",
+-    )
+-    PHONE_MASK_DISPLAY = (
+-        By.XPATH,
+-        "//*[contains(text(),'手机') or contains(@class,'mobile') or contains(@class,'phone')]",
+-    )
+-
+-    EDIT_PROFILE_BUTTON = (By.XPATH, "//*[contains(text(),'编辑') or contains(text(),'修改资料')]")
+-    NICKNAME_INPUT = (
+-        By.XPATH,
+-        "//input[@placeholder*='昵称' or @name='nickname'] | //input[contains(@class,'nickname')]",
+-    )
+-    SAVE_BUTTON = (By.XPATH, "//button[contains(text(),'保存') or contains(text(),'确定')]")
+-
+-    SUCCESS_TIP = (By.XPATH, "//*[contains(text(),'修改成功') or contains(text(),'保存成功')]")
+-
+-    def open_user_center(self):
+-        """进入个人中心。"""
+-        self.open()
+-        self.click(self.USER_AVATAR)
+-        if self.is_element_present(self.USER_CENTER_LINK, timeout=3):
+-            self.click(self.USER_CENTER_LINK)
+-            self.wait_for_ajax_complete()
+-        logger.info("已进入个人中心")
+-
+-    def get_nickname(self) -> str:
+-        """获取当前显示的昵称。"""
+-        return self.get_text(self.NICKNAME_DISPLAY, timeout=10)
+-
+-    def get_phone_mask(self) -> str:
+-        """获取手机号掩码展示文本。"""
+-        return self.get_text(self.PHONE_MASK_DISPLAY, timeout=5)
+-
+-    def modify_nickname(self, new_nickname: str):
+-        """修改昵称。"""
+-        logger.info(f"修改昵称为: {new_nickname}")
+-        self.click(self.EDIT_PROFILE_BUTTON)
+-        self.input_text(self.NICKNAME_INPUT, new_nickname)
+-        self.click(self.SAVE_BUTTON)
+-        self.wait_for_ajax_complete()
+-
+-    def is_modify_success(self) -> bool:
+-        """判断修改是否成功。"""
+-        return self.is_element_visible(self.SUCCESS_TIP, timeout=5)
+-
+-    def verify_phone_mask_format(self, phone_mask: str) -> bool:
+-        """校验手机号掩码格式（如 138****0000）。"""
+-        return re.search(r"1\d{2}\*{4}\d{4}", phone_mask) is not None
+Index: xh_ui_auto/testcases/test_login.py
+===================================================================
+diff --git a/xh_ui_auto/testcases/test_login.py b/xh_ui_auto/testcases/test_login.py
+deleted file mode 100644
+--- a/xh_ui_auto/testcases/test_login.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,65 +0,0 @@
+-# File: testcases/test_login.py
+-"""登录/登出测试用例（@pytest.mark.parametrize 数据驱动）。
+-
+-登录数据从 data/login_data.csv 读取，通过 @pytest.mark.parametrize 装饰器注入。
+-"""
+-import pytest
+-
+-from pages.login_page import LoginPage
+-from pages.home_page import HomePage
+-from utils.csv_reader import read_csv_to_list, get_data_path
+-
+-# 模块级加载 CSV：@parametrize 在收集阶段求值，必须模块级读取
+-LOGIN_DATA = read_csv_to_list(get_data_path("login_data.csv"))
+-
+-
+-class TestLogin:
+-    """登录模块测试。"""
+-
+-    @pytest.mark.login
+-    @pytest.mark.parametrize(
+-        "case",
+-        LOGIN_DATA,
+-        ids=[r["case_name"] for r in LOGIN_DATA],
+-    )
+-    def test_login(self, driver, case):
+-        """参数化登录测试（正向/反向共用一套流程）。"""
+-        phone = case["phone"]
+-        password = case["password"]
+-        expected = case["expected_result"]
+-        expected_error = case.get("expected_error_msg", "")
+-        case_name = case["case_name"]
+-
+-        login_page = LoginPage(driver)
+-        login_page.open_login_page()
+-        login_page.login_with_password(phone, password)
+-
+-        if expected == "success":
+-            assert login_page.is_login_success(), (
+-                f"[{case_name}] 期望登录成功，但未检测到用户头像/昵称"
+-            )
+-        else:
+-            assert not login_page.is_login_success(), (
+-                f"[{case_name}] 期望登录失败，但实际登录成功"
+-            )
+-            if expected_error:
+-                actual = login_page.get_error_tip()
+-                assert actual, (
+-                    f"[{case_name}] 期望错误提示包含 '{expected_error}'，但未捕获到"
+-                )
+-                assert expected_error in actual, (
+-                    f"[{case_name}] 错误提示不匹配，"
+-                    f"期望包含 '{expected_error}'，实际 '{actual}'"
+-                )
+-
+-    @pytest.mark.logout
+-    def test_logout_success(self, logged_in_driver):
+-        """退出登录后登录入口应重新出现。"""
+-        home_page = HomePage(logged_in_driver)
+-        home_page.open_home()
+-        home_page.logout()
+-        assert home_page.is_login_entry_visible(), "退出登录后未重新出现登录入口"
+-
+-
+-if __name__ == "__main__":
+-    pytest.main([__file__, "-v", "-s"])
+Index: xh_ui_auto/pages/publish_page.py
+===================================================================
+diff --git a/xh_ui_auto/pages/publish_page.py b/xh_ui_auto/pages/publish_page.py
+deleted file mode 100644
+--- a/xh_ui_auto/pages/publish_page.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,149 +0,0 @@
+-# File: pages/publish_page.py
+-"""发布页面 Page Object。
+-
+-封装发布文章/微头条的操作，包含富文本编辑器 ProseMirror 的处理。
+-"""
+-from selenium.webdriver.common.by import By
+-from selenium.webdriver.common.keys import Keys
+-
+-from pages.base_page import BasePage
+-from utils.logger import logger
+-
+-
+-class PublishPage(BasePage):
+-    """发布页面封装。"""
+-
+-    # ===== 元素定位器 =====
+-    # 发布入口
+-    PUBLISH_ENTRY = (By.XPATH, "//*[contains(text(),'发布') and (ancestor::button or ancestor::a)]")
+-
+-    # 发布类型选择
+-    ARTICLE_TYPE_TAB = (By.XPATH, "//*[contains(text(),'写文章') or contains(text(),'发文章')]")
+-    MICRO_HEADER_TAB = (By.XPATH, "//*[contains(text(),'微头条') or contains(text(),'发微头条')]")
+-
+-    # 文章标题
+-    ARTICLE_TITLE_INPUT = (
+-        By.XPATH,
+-        "//input[@placeholder*='标题' or @placeholder*='文章'] | //textarea[contains(@class,'title')]",
+-    )
+-
+-    # 富文本编辑器（ProseMirror 是固定的 class，定位稳定）
+-    PROSEMIRROR_EDITOR = (By.CSS_SELECTOR, ".ProseMirror")
+-    # 通用富文本编辑器备用定位
+-    RICH_TEXT_EDITOR = (By.XPATH, "//div[contains(@class,'editor') and @contenteditable='true']")
+-
+-    # 微头条输入框
+-    MICRO_HEADER_INPUT = (
+-        By.XPATH,
+-        "//div[contains(@class,'micro')]//div[@contenteditable='true'] | //textarea[contains(@class,'micro')]",
+-    )
+-
+-    # 发布按钮
+-    PUBLISH_BUTTON = (By.XPATH, "//button[contains(text(),'发布') and not(contains(text(),'发'))]")
+-
+-    # 字数提示
+-    WORD_COUNT_TIP = (By.XPATH, "//*[contains(@class,'count') or contains(text(),'字')]")
+-
+-    # 错误提示
+-    ERROR_TIP = (By.XPATH, "//div[contains(@class,'error') or contains(@class,'tip') or contains(@class,'toast')]")
+-
+-    # 发布成功提示
+-    SUCCESS_TIP = (By.XPATH, "//*[contains(text(),'发布成功')]")
+-
+-    def open_publish_page(self):
+-        """打开发布页面。"""
+-        self.open()
+-        if self.is_element_present(self.PUBLISH_ENTRY, timeout=5):
+-            self.click(self.PUBLISH_ENTRY)
+-            self.wait_for_ajax_complete()
+-        logger.info("已打开发布页面")
+-
+-    def switch_to_article(self):
+-        """切换到发布文章 Tab。"""
+-        if self.is_element_present(self.ARTICLE_TYPE_TAB, timeout=3):
+-            self.click(self.ARTICLE_TYPE_TAB)
+-            logger.info("切换到发布文章")
+-
+-    def switch_to_micro_header(self):
+-        """切换到发布微头条 Tab。"""
+-        if self.is_element_present(self.MICRO_HEADER_TAB, timeout=3):
+-            self.click(self.MICRO_HEADER_TAB)
+-            logger.info("切换到发布微头条")
+-
+-    def input_article_title(self, title: str):
+-        """输入文章标题。"""
+-        self.input_text(self.ARTICLE_TITLE_INPUT, title)
+-
+-    def input_rich_text_content(self, content: str):
+-        """向 ProseMirror 富文本编辑器输入正文内容。
+-
+-        ProseMirror 编辑器是 contenteditable div，需要先点击聚焦再输入。
+-        换行通过模拟回车键实现。
+-
+-        Args:
+-            content: 正文内容，多段用 \n 分隔
+-        """
+-        logger.info("向富文本编辑器输入正文")
+-        # 优先使用 ProseMirror 固定类名定位
+-        if self.is_element_present(self.PROSEMIRROR_EDITOR, timeout=5):
+-            editor = self.find_visible_element(self.PROSEMIRROR_EDITOR)
+-        else:
+-            editor = self.find_visible_element(self.RICH_TEXT_EDITOR)
+-
+-        # 点击聚焦
+-        self.click_element(editor)
+-        # 按段落输入，使用回车换行
+-        paragraphs = content.split("\n")
+-        for i, paragraph in enumerate(paragraphs):
+-            if i > 0:
+-                editor.send_keys(Keys.ENTER)
+-            editor.send_keys(paragraph)
+-
+-    def input_micro_header(self, content: str):
+-        """输入微头条内容。
+-
+-        Args:
+-            content: 微头条文本内容
+-        """
+-        editor = self.find_visible_element(self.MICRO_HEADER_INPUT)
+-        self.click_element(editor)
+-        editor.send_keys(content)
+-
+-    def publish(self):
+-        """点击发布按钮。"""
+-        self.click(self.PUBLISH_BUTTON)
+-        self.wait_for_ajax_complete()
+-        logger.info("已点击发布按钮")
+-
+-    def get_error_tip(self) -> str:
+-        """获取发布错误提示。"""
+-        try:
+-            return self.get_text(self.ERROR_TIP, timeout=5)
+-        except Exception:
+-            return ""
+-
+-    def is_publish_success(self) -> bool:
+-        """判断是否发布成功。"""
+-        return self.is_element_visible(self.SUCCESS_TIP, timeout=10)
+-
+-    def get_word_count_tip(self) -> str:
+-        """获取字数提示文本。"""
+-        try:
+-            return self.get_text(self.WORD_COUNT_TIP, timeout=3)
+-        except Exception:
+-            return ""
+-
+-    def publish_article(self, title: str, content: str):
+-        """发布完整文章（标题 + 正文）的便捷方法。"""
+-        self.open_publish_page()
+-        self.switch_to_article()
+-        self.input_article_title(title)
+-        self.input_rich_text_content(content)
+-        self.publish()
+-
+-    def publish_micro_header(self, content: str):
+-        """发布微头条的便捷方法。"""
+-        self.open_publish_page()
+-        self.switch_to_micro_header()
+-        self.input_micro_header(content)
+-        self.publish()
+Index: xh_ui_auto/.env.example
+===================================================================
+diff --git a/xh_ui_auto/.env.example b/xh_ui_auto/.env.example
+deleted file mode 100644
+--- a/xh_ui_auto/.env.example	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,12 +0,0 @@
+-# File: .env.example
+-# 环境变量示例（存放敏感测试账号）
+-# 使用前复制为 .env 并填入真实信息：cp .env.example .env
+-
+-# 是否启用 headless 模式（true/false）
+-HEADLESS=false
+-
+-# 测试账号
+-# 注意：星火新闻登录可能触发滑块/短信验证码
+-# 建议使用测试白名单账号或预先获取登录 Cookie 注入
+-TEST_PHONE=13800000000
+-TEST_PASSWORD=Test123456
+Index: xh_ui_auto/testcases/__init__.py
+===================================================================
+diff --git a/xh_ui_auto/testcases/__init__.py b/xh_ui_auto/testcases/__init__.py
+deleted file mode 100644
+--- a/xh_ui_auto/testcases/__init__.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,1 +0,0 @@
+-"""testcases 包初始化文件。"""
+Index: xh_ui_auto/utils/logger.py
+===================================================================
+diff --git a/xh_ui_auto/utils/logger.py b/xh_ui_auto/utils/logger.py
+deleted file mode 100644
+--- a/xh_ui_auto/utils/logger.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,57 +0,0 @@
+-# File: utils/logger.py
+-"""日志配置模块。
+-
+-提供统一的日志记录器，输出到控制台和文件。
+-"""
+-import logging
+-import os
+-from datetime import datetime
+-
+-from config.settings import settings
+-
+-
+-def get_logger(name="xh_ui"):
+-    """获取统一配置的 logger 实例。
+-
+-    Args:
+-        name: logger 名称
+-
+-    Returns:
+-        logging.Logger: 配置好的 logger
+-    """
+-    logger = logging.getLogger(name)
+-    if logger.handlers:
+-        # 已配置过，避免重复添加 handler
+-        return logger
+-
+-    logger.setLevel(logging.DEBUG)
+-
+-    # 控制台 handler：输出 INFO 及以上
+-    console_handler = logging.StreamHandler()
+-    console_handler.setLevel(logging.INFO)
+-    console_format = logging.Formatter(
+-        "%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+-        datefmt="%Y-%m-%d %H:%M:%S",
+-    )
+-    console_handler.setFormatter(console_format)
+-
+-    # 文件 handler：输出 DEBUG 及以上
+-    log_dir = os.path.join(settings.REPORT_DIR, "logs")
+-    os.makedirs(log_dir, exist_ok=True)
+-    log_file = os.path.join(log_dir, f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+-    file_handler.setLevel(logging.DEBUG)
+-    file_format = logging.Formatter(
+-        "%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s",
+-        datefmt="%Y-%m-%d %H:%M:%S",
+-    )
+-    file_handler.setFormatter(file_format)
+-
+-    logger.addHandler(console_handler)
+-    logger.addHandler(file_handler)
+-    logger.propagate = False
+-    return logger
+-
+-
+-# 全局 logger 实例
+-logger = get_logger()
+Index: xh_ui_auto/testcases/test_register.py
+===================================================================
+diff --git a/xh_ui_auto/testcases/test_register.py b/xh_ui_auto/testcases/test_register.py
+deleted file mode 100644
+--- a/xh_ui_auto/testcases/test_register.py	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
++++ /dev/null	(revision 2ff9ccbd3532763f144e7474a32738b0feb84187)
+@@ -1,69 +0,0 @@
+-# File: testcases/test_register.py
+-"""注册测试用例。
+-
+-注意：星火新闻 PC 网页版可能不提供独立注册入口，
+-本模块在页面不支持注册时会统一跳过。
+-"""
+-import pytest
+-
+-from config.settings import settings
+-from pages.register_page import RegisterPage
+-from utils.helpers import random_string
+-
+-
+-class TestRegister:
+-    """注册模块测试。"""
+-
+-    def _open_or_skip(self, driver) -> RegisterPage:
+-        """打开注册页，若页面不支持独立注册则跳过当前用例。"""
+-        page = RegisterPage(driver)
+-        page.open_register_page()
+-        if not page.is_register_supported():
+-            pytest.skip("星火新闻 PC 端当前不支持独立注册")
+-        return page
+-
+-    @pytest.mark.register
+-    def test_register_page_supported(self, driver):
+-        """前置检查：页面是否支持独立注册。"""
+-        self._open_or_skip(driver)
+-
+-    @pytest.mark.register
+-    def test_register_invalid_phone(self, driver):
+-        """反向：手机号格式错误时注册失败。"""
+-        page = self._open_or_skip(driver)
+-        page.fill_register_form(
+-            phone=settings.INVALID_PHONE,
+-            password=settings.TEST_PASSWORD,
+-            nickname=f"测试用户_{random_string(4)}",
+-        )
+-        page.submit_register()
+-        assert page.get_error_tip(), "格式错误的手机号应触发前端校验"
+-
+-    @pytest.mark.register
+-    def test_register_duplicate_phone(self, driver):
+-        """反向：已注册手机号再次注册应失败。"""
+-        page = self._open_or_skip(driver)
+-        page.fill_register_form(
+-            phone=settings.TEST_PHONE,
+-            password=settings.TEST_PASSWORD,
+-            nickname=f"重复用户_{random_string(4)}",
+-        )
+-        page.submit_register()
+-        error_tip = page.get_error_tip()
+-        if error_tip:
+-            keywords = ["已注册", "已存在", "注册过", "占用"]
+-            assert any(k in error_tip for k in keywords), \
+-                f"重复注册提示异常: {error_tip}"
+-
+-    @pytest.mark.register
+-    def test_register_success(self, driver):
+-        """正向：使用随机新手机号注册（需短信验证码，需手动介入）。"""
+-        self._open_or_skip(driver)
+-        pytest.skip(
+-            "注册流程需要真实短信验证码，需手动介入完成。"
+-            "请使用白名单测试号或 mock 短信网关后启用此用例。"
+-        )
+-
+-
+-if __name__ == "__main__":
+-    pytest.main([__file__, "-v", "-s"])

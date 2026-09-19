@@ -1,0 +1,60 @@
+﻿2026-09-19 10:30:15 [INFO] xh_api - 测试会话开始: 2026-09-19 10:30:15 | GATEWAY_URL=http://192.168.31.88:8080
+2026-09-19 10:30:15 [INFO] xh_api - 切换到 [test] 环境，网关: http://192.168.31.88:8080
+2026-09-19 10:30:15 [INFO] xh_api - 读取 CSV 测试数据: D:\Program Files\pythen12\py_tode\xhcs\xh_api_auto\data\product_search_data.csv
+2026-09-19 10:30:15 [INFO] xh_api - 读取 5 条数据
+2026-09-19 10:30:15 [INFO] xh_api - 读取 CSV 测试数据: D:\Program Files\pythen12\py_tode\xhcs\xh_api_auto\data\cart_add_data.csv
+2026-09-19 10:30:15 [INFO] xh_api - 读取 4 条数据
+2026-09-19 10:30:15 [INFO] xh_api - 读取 YAML 测试数据: D:\Program Files\pythen12\py_tode\xhcs\xh_api_auto\data\global_config.yaml
+2026-09-19 10:30:15 [INFO] xh_api - 读取成功: 6 个顶级键
+2026-09-19 10:30:15 [INFO] xh_api - ========== 开始用例: test_product.py::TestProduct::test_search_by_keyword ==========
+2026-09-19 10:30:15 [INFO] xh_api - 搜索商品: {'page': 1, 'size': 5, 'keyword': '商品'}
+2026-09-19 10:30:15 [INFO] xh_api - [请求] GET http://192.168.31.88:8080/api/product/search
+  params={'page': 1, 'size': 5, 'keyword': '商品'}
+  body=None
+  headers={'Content-Type': 'application/json;charset=UTF-8', 'Accept': 'application/json'}
+2026-09-19 10:30:16 [INFO] xh_api - [响应] status=200 time=0.312s
+  body={'code': 200, 'message': 'success', 'data': {'total': 128, 'pages': 26, 'current': 1, 'list': [{'productId': 1001, 'name': '商品名称_A', 'price': 99.00, 'image': 'https://img.example.com/p1.jpg', 'sales': 500}, {'productId': 1002, 'name': '推荐商品_B', 'price': 199.00, 'image': 'https://img.example.com/p2.jpg', 'sales': 321}]}}
+2026-09-19 10:30:16 [INFO] xh_api - ========== 结束用例: test_product.py::TestProduct::test_search_by_keyword ==========
+2026-09-19 10:30:16 [INFO] xh_api - ========== 开始用例: test_product.py::TestProduct::test_search_with_sort[price_asc] ==========
+2026-09-19 10:30:16 [INFO] xh_api - 搜索商品: {'page': 1, 'size': 20, 'minPrice': 0, 'maxPrice': 9999, 'sort': 'price_asc'}
+2026-09-19 10:30:17 [INFO] xh_api - [响应] status=200 time=0.289s
+  body={'code': 200, 'message': 'success', 'data': {'total': 76, 'pages': 4, 'current': 1, 'list': [...]}}
+2026-09-19 10:30:17 [INFO] xh_api - ========== 结束用例: test_product.py::TestProduct::test_search_with_sort[price_asc] ==========
+2026-09-19 10:30:17 [INFO] xh_api - ========== 开始用例: test_product.py::TestProduct::test_detail_not_found ==========
+2026-09-19 10:30:17 [INFO] xh_api - 获取商品详情: productId=99999999
+2026-09-19 10:30:18 [INFO] xh_api - [响应] status=200 time=0.145s
+  body={'code': 404, 'message': '商品不存在', 'data': None}
+2026-09-19 10:30:18 [INFO] xh_api - ========== 结束用例: test_product.py::TestProduct::test_detail_not_found ==========
+2026-09-19 10:30:22 [INFO] xh_api - ========== 开始用例: test_cart.py::TestCart::test_add_and_list ==========
+2026-09-19 10:30:22 [INFO] xh_api - 添加购物车: {'productId': 1001, 'quantity': 1, 'specInfo': '颜色:红;尺码:M'}
+2026-09-19 10:30:22 [INFO] xh_api - [请求] POST http://192.168.31.88:8080/api/cart/add
+  body={'productId': 1001, 'quantity': 1, 'specInfo': '颜色:红;尺码:M'}
+  headers={'Content-Type': 'application/json;charset=UTF-8', 'Accept': 'application/json', 'Authorization': 'Bearer eyJhbGc***oXbQqQ'}
+2026-09-19 10:30:23 [INFO] xh_api - [响应] status=200 time=0.451s
+  body={'code': 200, 'message': '添加成功', 'data': None}
+2026-09-19 10:30:23 [INFO] xh_api - 查询购物车列表
+2026-09-19 10:30:23 [INFO] xh_api - [响应] status=200 time=0.201s
+  body={'code': 200, 'message': 'success', 'data': [{'cartItemId': 2001, 'productId': 1001, 'productName': '商品名称', 'image': 'https://img.example.com/p1.jpg', 'price': 99.00, 'quantity': 1, 'specInfo': '颜色:红;尺码:M', 'checked': True}]}
+2026-09-19 10:30:23 [INFO] xh_api - ========== 结束用例: test_cart.py::TestCart::test_add_and_list ==========
+2026-09-19 10:30:35 [INFO] xh_api - ========== 开始用例: test_order.py::TestOrder::test_create_order ==========
+2026-09-19 10:30:35 [INFO] xh_api - 添加购物车: {'productId': 1001, 'quantity': 2}
+2026-09-19 10:30:36 [INFO] xh_api - 创建订单: {'cartItemIds': [2001, 2002], 'addressId': 3001, 'remark': '尽快发货'}
+2026-09-19 10:30:36 [WARNING] xh_api - 第 1 次请求 HTTP 异常: 500 Server Error:  for url: http://192.168.31.88:8080/api/order/create，响应: {"code":500,"message":"数据库连接超时: Communications link failure","data":null}
+2026-09-19 10:30:37 [WARNING] xh_api - 第 2 次请求 HTTP 异常: 500 Server Error:  for url: http://192.168.31.88:8080/api/order/create，响应: {"code":500,"message":"数据库连接超时: Communications link failure","data":null}
+2026-09-19 10:30:37 [ERROR] xh_api.utils.helpers:26 - 状态码不匹配：期望 200，实际 -1，message=请求失败: 500 Server Error: ...
+2026-09-19 10:30:37 [INFO] xh_api - ========== 结束用例: test_order.py::TestOrder::test_create_order ==========
+2026-09-19 10:30:42 [INFO] xh_api - ========== 开始用例: test_seckill.py::TestSeckill::test_execute_seckill ==========
+2026-09-19 10:30:42 [INFO] xh_api - 获取秒杀商品列表
+2026-09-19 10:30:43 [INFO] xh_api - [响应] status=200 time=0.125s
+  body={'code': 200, 'message': 'success', 'data': [{'seckillId': 6001, 'productId': 1001, 'productName': '秒杀商品', 'seckillPrice': 9.90, 'originalPrice': 99.00, 'stock': 0, 'startTime': '2026-09-19 10:00:00', 'endTime': '2026-09-19 12:00:00', 'status': '进行中'}]}
+2026-09-19 10:30:43 [INFO] xh_api - 执行秒杀: {'seckillId': 6001, 'quantity': 1}
+2026-09-19 10:30:43 [INFO] xh_api - [响应] status=200 time=0.067s
+  body={'code': 1001, 'message': '库存不足', 'data': None}
+2026-09-19 10:30:43 [INFO] xh_api - ========== 结束用例: test_seckill.py::TestSeckill::test_execute_seckill ==========
+2026-09-19 10:30:55 [INFO] xh_api - ========== 开始用例: test_review.py::TestReview::test_add_review_invalid_rating ==========
+2026-09-19 10:30:55 [INFO] xh_api - 发表评价: {'orderId': 5001, 'productId': 1001, 'rating': 6, 'content': '评分超范围'}
+2026-09-19 10:30:56 [INFO] xh_api - [响应] status=200 time=0.092s
+  body={'code': 400, 'message': '评分必须在1-5之间', 'data': None}
+2026-09-19 10:30:56 [INFO] xh_api - ========== 结束用例: test_review.py::TestReview::test_add_review_invalid_rating ==========
+2026-09-19 10:31:02 [INFO] xh_api - Allure 环境信息已写入: D:\Program Files\pythen12\py_tode\xhcs\xh_api_auto\report\allure-results\environment.properties
+2026-09-19 10:31:02 [INFO] xh_api - 测试会话结束

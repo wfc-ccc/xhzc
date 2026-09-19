@@ -1,0 +1,4 @@
+﻿defect_id,related_case,module,title,severity,status,found_time,fixed_time,owner,root_cause,fix_note
+DFT-001,TO_01/TO_05,order,/api/order/create 500 数据库连接超时,P1,Open,2026-09-19 10:30,_,王磊,"订单服务 order-service 数据源 druid 连接池配置不足（maxActive=5），压测时出现 Communications link failure。","建议调大 maxActive=50，并加入熔断重试。"
+DFT-002,TPAY_01,payment,支付创建接口 404（订单不存在）,P2,Blocked,2026-09-19 10:31,_,王磊,"依赖 TO_01 创建订单失败，导致订单不存在。属于二级缺陷，根因在 DFT-001。","DFT-001 修复后回归。"
+DFT-003,TSK_02,seckill,秒杀6001库存显示0 未自动置为已结束,P3,Open,2026-09-19 10:30,_,刘洋,"stock=0 但 status 仍显示 进行中，应触发库存耗尽结束活动。","建议库存为0时由库存扣减逻辑同步更新活动状态。"

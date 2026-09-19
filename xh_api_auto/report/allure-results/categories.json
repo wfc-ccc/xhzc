@@ -1,0 +1,21 @@
+﻿[
+  {
+    "name": "业务异常",
+    "matchedStatuses": ["broken"],
+    "messageRegex": ".*(库存不足|优惠券无效|秒杀已结束|重复下单|商品不存在|评分|数据库).*"
+  },
+  {
+    "name": "产品缺陷",
+    "matchedStatuses": ["failed"],
+    "traceRegex": ".*AssertionError.*"
+  },
+  {
+    "name": "无权限/鉴权失败",
+    "messageRegex": ".*(401|403|未认证|无权限|token).*"
+  },
+  {
+    "name": "基础设施故障",
+    "matchedStatuses": ["broken"],
+    "messageRegex": ".*(timeout|连接失败|500|HTTP).*"
+  }
+]

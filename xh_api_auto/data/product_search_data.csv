@@ -1,0 +1,6 @@
+﻿case_id,keyword,categoryId,brandId,minPrice,maxPrice,sort,page,size,expect_code,expect_total_ge
+P_S_001,手机,,,,,price_asc,1,10,200,0
+P_S_002,笔记本,,,,,sales_desc,1,5,200,0
+P_S_003,,10,,,,,1,10,200,0
+P_S_004,,,5,,,,1,20,200,0
+P_S_005,耳机,,5,0,9999,price_desc,1,10,200,0
